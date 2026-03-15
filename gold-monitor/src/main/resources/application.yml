@@ -1,0 +1,109 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gold-price-monitor
+  
+  datasource:
+    url: jdbc:h2:file:./data/golddb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# 黄金价格监控配置
+gold:
+  monitor:
+    # 价格源配置
+    price-source:
+      primary: "XAUUSD"      # 优先使用XAUUSD
+      backup: "GC=F"         # 备选COMEX黄金
+      api-url: "https://query1.finance.yahoo.com/v8/finance/chart/"
+    
+    # 采集配置
+    collector:
+      interval-minutes: 5    # 每5分钟采集一次
+      retry-times: 3         # 失败重试3次
+      retry-delay-ms: 5000   # 重试间隔5秒
+      timeout-ms: 10000      # 请求超时10秒
+      history-days: 90       # 保存90天历史数据
+    
+    # 指标计算配置
+    indicator:
+      ma-periods: [5, 10, 20]           # 移动平均线周期
+      rsi-period: 14                     # RSI周期
+      atr-period: 14                     # ATR周期
+    
+    # 异常监控阈值
+    signal:
+      # 涨跌幅阈值
+      change-threshold:
+        minute5: 0.5        # 5分钟异动阈值 0.5%
+        hour1: 1.2          # 1小时异动阈值 1.2%
+        day1: 2.0           # 单日异动阈值 2.0%
+      
+      # 突破监控
+      breakout:
+        enable-day-high-low: true     # 监控日内高低点突破
+        enable-ma-cross: true          # 监控均线突破
+      
+      # 冷却时间（避免重复报警）
+      cooldown-minutes: 15
+    
+    # 飞书推送配置
+    pusher:
+      feishu:
+        enabled: true
+        webhook-url: "https://open.feishu.cn/open-apis/bot/v2/hook/xxx"  # 需要替换为实际的webhook
+        chat-id: "oc_df910cb1db23f0e3ea4f9a9392888cd8"
+    
+    # 投资建议配置
+    advisor:
+      # 仓位建议
+      position:
+        conservative: [10, 20]    # 稳健型 10%-20%
+        balanced: [20, 35]        # 平衡型 20%-35%
+        aggressive: [30, 50]      # 激进型 30%-50%（不超过50%）
+      
+      # 止损配置
+      stop-loss:
+        default-percent: 3.0      # 默认止损 3%
+        tight-percent: 1.5        # 严格止损 1.5%
+        loose-percent: 5.0        # 宽松止损 5%
+      
+      # 宏观事件日历（简化版，实际可从API获取）
+      macro-events:
+        - name: "美联储议息"
+          impact: HIGH
+        - name: "CPI数据"
+          impact: HIGH
+        - name: "非农就业"
+          impact: HIGH
+        - name: "PPI数据"
+          impact: MEDIUM
+        - name: "美债收益率"
+          impact: MEDIUM
+
+# 日志配置
+logging:
+  level:
+    com.gold.monitor: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/gold-monitor.log
+    max-size: 100MB
+    max-history: 30
